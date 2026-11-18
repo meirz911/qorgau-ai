@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Qorgau AI</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .hero { max-width: 1100px; margin: 0 auto; padding: 60px 24px 30px; }
+  .hero h1 { font-size: clamp(32px, 5vw, 56px); line-height: 1.05; letter-spacing: -1px; }
+  .hero h1 em { font-style: normal; color: var(--accent); }
+  .hero p { color: var(--muted); font-size: 18px; max-width: 720px; line-height: 1.5; }
+  .cta { display: flex; gap: 12px; margin-top: 26px; flex-wrap: wrap; }
+  .cta a { padding: 14px 20px; border-radius: 12px; font-weight: 700; }
+  .grid { max-width: 1100px; margin: 0 auto; padding: 10px 24px 40px; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .grid .card b { display: block; font-size: 16px; margin: 6px 0; }
+  .grid .card p { color: var(--muted); margin: 0; line-height: 1.5; }
+  .num { color: var(--accent); font-weight: 800; font-size: 13px; }
+  .pipe { max-width: 1100px; margin: 0 auto; padding: 0 24px 60px; }
+  .flow { display: flex; gap: 8px; align-items: stretch; flex-wrap: wrap; }
+  .flow .card { flex: 1; min-width: 150px; text-align: center; }
+  .flow .arrow { align-self: center; color: var(--muted); font-size: 20px; }
+  .decisions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
+  @media (max-width: 640px) { .decisions { grid-template-columns: 1fr; } .flow .arrow { display: none; } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><div class="logo">Q</div>Qorgau AI <small>ITU Hackathon 2026 · FinTech</small></div>
+  <div class="nav"><a class="active" href="/">О проекте</a><a href="client.html">Клиент</a><a href="dashboard.html">Антифрод-центр</a></div>
+</div>
+
+<section class="hero">
+  <h1>Останавливаем мошенничество <em>до</em> того, как деньги ушли</h1>
+  <p>Qorgau AI оценивает каждый перевод за миллисекунды: поведение клиента, устройство, сеть получателей и текст комментария.
+    Объясняет риск человеческим языком и мягко прерывает сценарии социальной инженерии — главную причину потерь клиентов в Казахстане.</p>
+  <div class="cta">
+    <a class="btn-primary" href="client.html">▶ Демо: глазами клиента</a>
+    <a class="btn" href="dashboard.html">Антифрод-центр банка</a>
+  </div>
+</section>
+
+<section class="grid">
+  <div class="card"><span class="num">01</span><b>Предотвращение мошенничества</b><p>Гибрид: объяснимые правила + Isolation Forest на поведенческих признаках. Решение: пропустить / предупредить / задержать.</p></div>
+  <div class="card"><span class="num">02</span><b>Защита при переводах</b><p>Если клиент на звонке, открыт AnyDesk или в комментарии «безопасный счёт» — экран-предупреждение, 3 вопроса и пауза на обдумывание.</p></div>
+  <div class="card"><span class="num">03</span><b>Подозрительные транзакции</b><p>Сетевой анализ получателей: счёт, принимающий деньги от многих незнакомых людей за сутки, помечается как дроп.</p></div>
+  <div class="card"><span class="num">04</span><b>Интеллектуальная безопасность</b><p>Аналитик подтверждает fraud → получатель попадает в базу, и следующий клиент защищён автоматически.</p></div>
+</section>
+
+<section class="pipe">
+  <div class="card">
+    <h3>Как принимается решение (&lt; 1 мс)</h3>
+    <div class="flow">
+      <div class="card">Перевод<br><small class="muted">сумма, получатель, комментарий</small></div><div class="arrow">→</div>
+      <div class="card">Контекст сессии<br><small class="muted">звонок, устройство, гео, AnyDesk</small></div><div class="arrow">→</div>
+      <div class="card">Риск-движок<br><small class="muted">правила · ML · граф · NLP</small></div><div class="arrow">→</div>
+      <div class="card">Score 0–100<br><small class="muted">+ объяснение причин</small></div>
+    </div>
+    <div class="decisions">
+      <div class="card"><span class="chip ALLOW">ALLOW · &lt;35</span><p class="muted">Перевод проходит без трения — честные клиенты не страдают.</p></div>
+      <div class="card"><span class="chip CHALLENGE">CHALLENGE · 35–69</span><p class="muted">Предупреждение, вопросы-проверки, пауза. Клиент решает сам.</p></div>
+      <div class="card"><span class="chip HOLD">HOLD · ≥70</span><p class="muted">Задержка и звонок с официального номера банка.</p></div>
+    </div>
+  </div>
+</section>
+</body>
+</html>

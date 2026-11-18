@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Qorgau · Антифрод-центр</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .page { padding: 18px 24px 40px; max-width: 1500px; margin: 0 auto; }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+  .controls .sep { width: 1px; height: 26px; background: var(--line); margin: 0 4px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .kpi .v { font-size: 26px; font-weight: 800; margin-top: 2px; }
+  .kpi .s { color: var(--muted); font-size: 12px; }
+  .main { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr); gap: 16px; }
+  @media (max-width: 1100px) { .main { grid-template-columns: 1fr; } }
+  .feed { max-height: 560px; overflow: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; color: var(--muted); font-weight: 600; font-size: 12px; padding: 8px; position: sticky; top: 0; background: var(--panel); }
+  td { padding: 8px; border-top: 1px solid var(--line); font-size: 13px; white-space: nowrap; }
+  tr.tx { cursor: pointer; }
+  tr.tx:hover td { background: var(--panel2); }
+  tr.sel td { background: rgba(91, 140, 255, .12); }
+  .scen { max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+  .bottom { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-top: 16px; }
+  .hist { display: flex; align-items: flex-end; gap: 4px; height: 140px; }
+  .hist div { flex: 1; border-radius: 6px 6px 0 0; min-height: 2px; position: relative; }
+  .hist span { position: absolute; top: -18px; left: 0; right: 0; text-align: center; font-size: 11px; color: var(--muted); }
+  .axis { display: flex; gap: 4px; margin-top: 4px; }
+  .axis span { flex: 1; text-align: center; font-size: 10px; color: var(--muted); }
+  .hbar { margin: 7px 0; }
+  .hbar .lbl { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px; }
+  .hbar .track { height: 7px; background: var(--line); border-radius: 9px; overflow: hidden; }
+  .hbar .track i { display: block; height: 100%; background: var(--accent2); border-radius: 9px; }
+  .acc { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px dashed var(--line); font-size: 13px; }
+  .detail .reason { display: grid; grid-template-columns: 1fr 70px 34px; gap: 8px; align-items: center; padding: 6px 0; font-size: 13px; }
+  .grp { font-size: 10px; text-transform: uppercase; color: var(--muted); letter-spacing: .5px; }
+  .kv { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size: 12px; margin: 12px 0; }
+  .kv div span { color: var(--muted); }
+  .live { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; margin-right: 6px; }
+  .live.on { background: var(--ok); box-shadow: 0 0 0 4px rgba(52, 211, 153, .2); }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><div class="logo">Q</div>Qorgau AI <small>Антифрод-центр банка</small></div>
+  <div class="nav"><a href="/">О проекте</a><a href="client.html">Клиент</a><a class="active" href="dashboard.html">Антифрод-центр</a></div>
+</div>
+
+<div class="page">
+  <div class="controls">
+    <button id="simBtn" class="btn-primary"><span class="live" id="liveDot"></span>Запустить поток операций</button>
+    <div class="sep"></div>
+    <span class="muted">Запустить атаку:</span>
+    <button data-a="socialEngineering">📞 Соц. инженерия</button>
+    <button data-a="remoteAccess">🖥 AnyDesk</button>
+    <button data-a="accountTakeover">🔓 Захват аккаунта</button>
+    <button data-a="marketplace">🛒 OLX-предоплата</button>
+    <button data-a="investment">📈 Инвест-схема</button>
+    <button data-a="muleBurst">🕸 Сеть дропов</button>
+  </div>
+
+  <div class="kpis">
+    <div class="card kpi"><h3>Операций</h3><div class="v" id="kTotal">0</div><div class="s" id="kVol">—</div></div>
+    <div class="card kpi"><h3>Предупреждено</h3><div class="v" style="color:var(--warn)" id="kCh">0</div><div class="s">экран-проверка у клиента</div></div>
+    <div class="card kpi"><h3>Задержано</h3><div class="v" style="color:var(--bad)" id="kHold">0</div><div class="s">ручная проверка</div></div>
+    <div class="card kpi"><h3>Сохранено денег</h3><div class="v" style="color:var(--accent)" id="kSaved">0 ₸</div><div class="s">отменено + задержано</div></div>
+    <div class="card kpi"><h3>Recall / FPR</h3><div class="v" id="kRecall">—</div><div class="s" id="kFpr">по ground truth симулятора</div></div>
+    <div class="card kpi"><h3>Скорость</h3><div class="v" id="kLat">—</div><div class="s" id="kMl">—</div></div>
+  </div>
+
+  <div class="main">
+    <div class="card">
+      <h3>Поток операций в реальном времени</h3>
+      <div class="feed">
+        <table>
+          <thead><tr><th>Время</th><th>Клиент</th><th>Получатель</th><th style="text-align:right">Сумма</th><th>Риск</th><th>Решение</th><th>Статус</th><th>Сценарий</th></tr></thead>
+          <tbody id="feed"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card detail" id="detail">
+      <h3>Карточка операции</h3>
+      <p class="muted">Нажмите на операцию в ленте, чтобы увидеть объяснение решения и принять меры.</p>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="card"><h3>Распределение риск-скора</h3><div class="hist" id="hist"></div><div class="axis"></div></div>
+    <div class="card"><h3>Выявленные схемы</h3><div id="scen"><p class="muted">Пока нет</p></div></div>
+    <div class="card"><h3>Частые факторы риска</h3><div id="reasons"><p class="muted">Пока нет</p></div></div>
+    <div class="card"><h3>🕸 Подозрительные счета (дропы)</h3><div id="mules"></div></div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => Math.round(n).toLocaleString('ru-RU') + ' ₸';
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const rows = new Map();
+let selected = null;
+const GROUP = { behavior: 'поведение', session: 'сессия', network: 'сеть', text: 'текст', pattern: 'паттерн', ml: 'ML' };
+const REASON_NAMES = { AMOUNT_X: 'Крупная сумма', AMOUNT: 'Сумма выше нормы', NEW_RECIP: 'Новый получатель', ODD_HOUR: 'Необычное время',
+  VELOCITY: 'Частота операций', NEW_DEVICE: 'Новое устройство', GEO: 'Гео-несоответствие', PWD_RESET: 'Смена пароля',
+  REMOTE: 'Удалённый доступ', ON_CALL: 'Звонок во время перевода', CALLER: 'Неизвестный звонящий', BLACKLIST: 'База жалоб',
+  YOUNG_ACC: 'Свежий счёт', MULE: 'Признак дропа', FANIN: 'Много отправителей', TEXT: 'Текст комментария',
+  SOCIAL_ENG: 'Соц. инженерия', ML: 'ML-аномалия', ANSWERS: 'Ответы клиента' };
+
+async function api(path, body) {
+  const r = await fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
+  return r.json();
+}
+
+const color = (s) => (s >= 70 ? 'var(--bad)' : s >= 35 ? 'var(--warn)' : 'var(--ok)');
+
+function rowHtml(t) {
+  return `<td>${new Date(t.ts).toTimeString().slice(0, 8)}</td>
+    <td>${esc(t.userName)}${t.source === 'client' ? ' <span class="chip CANCELLED">демо</span>' : ''}</td>
+    <td>${esc(t.recipient.name)}</td>
+    <td style="text-align:right">${fmt(t.amount)}</td>
+    <td><div class="row" style="gap:6px"><b style="width:22px;color:${color(t.score)}">${t.score}</b><div class="scorebar grow"><i style="width:${t.score}%;background:${color(t.score)}"></i></div></div></td>
+    <td><span class="chip ${t.decision}">${t.decision}</span></td>
+    <td><span class="chip ${t.status}">${t.status}</span>${t.label ? ` <span class="muted">· ${t.label}</span>` : ''}</td>
+    <td class="scen">${t.decision === 'ALLOW' ? '<span class="muted">—</span>' : esc(t.scenario)}</td>`;
+}
+
+function upsert(t, isNew) {
+  let tr = rows.get(t.id)?.el;
+  if (!tr) {
+    tr = document.createElement('tr');
+    tr.className = 'tx';
+    tr.onclick = () => select(t.id);
+    $('feed').prepend(tr);
+    while ($('feed').children.length > 150) { const last = $('feed').lastChild; rows.delete(last.dataset.id); last.remove(); }
+  }
+  tr.dataset.id = t.id;
+  tr.innerHTML = rowHtml(t);
+  tr.classList.toggle('sel', selected === t.id);
+  if (isNew && t.decision !== 'ALLOW') { tr.classList.remove('flash'); void tr.offsetWidth; tr.classList.add('flash'); }
+  rows.set(t.id, { el: tr, tx: t });
+  if (selected === t.id) renderDetail(t);
+}
+
+function select(id) {
+  selected = id;
+  document.querySelectorAll('tr.tx').forEach((r) => r.classList.toggle('sel', r.dataset.id === id));
+  renderDetail(rows.get(id).tx);
+}
+
+function renderDetail(t) {
+  const max = Math.max(...t.reasons.map((r) => r.points), 1);
+  const f = t.features;
+  const ctx = Object.entries(t.context || {}).filter(([, v]) => v).map(([k]) => k).join(', ') || '—';
+  $('detail').innerHTML = `<h3>Карточка операции · ${t.id}</h3>
+    <div class="row" style="gap:16px">
+      <div style="font-size:48px;font-weight:900;color:${color(t.score)};line-height:1">${t.score}</div>
+      <div class="grow"><div style="font-weight:700;font-size:15px">${esc(t.scenario)}</div>
+        <div style="margin-top:4px"><span class="chip ${t.decision}">${t.decision}</span> <span class="chip ${t.status}">${t.status}</span>
+        ${t.truth ? `<span class="muted" style="font-size:12px"> · truth: ${t.truth}</span>` : ''}</div></div>
+    </div>
+    <div class="kv">
+      <div><span>Клиент:</span> ${esc(t.userName)} (${t.userCity})</div>
+      <div><span>Получатель:</span> ${esc(t.recipient.name)}, ${t.recipient.bank}</div>
+      <div><span>Сумма:</span> ${fmt(t.amount)} (×${f.ratio.toFixed(1)} к норме)</div>
+      <div><span>Счёт получателя:</span> ${t.recipient.ageDays} дн., ${f.fanIn} отправ./24ч</div>
+      <div><span>Устройство / гео:</span> ${f.isNewDevice ? 'новое' : 'известное'} / ${t.city}</div>
+      <div><span>Контекст:</span> ${ctx}</div>
+      <div><span>Комментарий:</span> ${esc(t.comment || '—')}</div>
+      <div><span>ML (iForest):</span> ${t.ml} · ${t.latencyMs} мс</div>
+    </div>
+    <h3 style="margin-top:6px">Почему такое решение</h3>
+    ${t.reasons.map((r) => `<div class="reason"><div>${esc(r.label)}<div class="grp">${GROUP[r.group] || r.group}</div></div>
+      <div class="scorebar"><i style="width:${(r.points / max) * 100}%;background:var(--accent2)"></i></div><b>+${r.points}</b></div>`).join('') || '<p class="muted">Факторов риска нет</p>'}
+    ${t.answers ? `<p class="muted" style="font-size:12px">Ответы клиента: ${Object.entries(t.answers).map(([k, v]) => `${k}=${v ? 'да' : 'нет'}`).join(', ')}</p>` : ''}
+    <div class="row" style="margin-top:14px">
+      <button class="btn-danger grow" onclick="review('${t.id}','fraud')">Мошенничество → в базу</button>
+      <button class="btn-ok grow" onclick="review('${t.id}','legit')">Легитимно</button>
+    </div>
+    <p class="muted" style="font-size:12px;margin-top:8px">«Мошенничество» добавляет получателя в базу жалоб — следующие переводы на этот счёт у всех клиентов будут задержаны.</p>`;
+}
+
+async function review(id, label) {
+  const t = await api('/api/review', { txId: id, label });
+  upsert(t);
+  refresh();
+}
+
+async function refresh() {
+  const [s, mules] = await Promise.all([api('/api/stats'), api('/api/accounts/suspicious')]);
+  $('kTotal').textContent = s.total;
+  $('kVol').textContent = 'оборот ' + fmt(s.volume);
+  $('kCh').textContent = s.CHALLENGE;
+  $('kHold').textContent = s.HOLD;
+  $('kSaved').textContent = fmt(s.saved);
+  $('kRecall').textContent = s.recall == null ? '—' : `${Math.round(s.recall * 100)}% / ${(s.fpr * 100).toFixed(1)}%`;
+  $('kLat').textContent = s.avgLatency + ' мс';
+  $('kMl').textContent = `iForest: ${s.ml.trees} деревьев, ${s.ml.samples} операций`;
+  setSim(s.simRunning);
+
+  const hm = Math.max(...s.hist, 1);
+  $('hist').innerHTML = s.hist.map((v, i) => `<div style="height:${(v / hm) * 100}%;background:${color(i * 10 + 5)}"><span>${v || ''}</span></div>`).join('');
+  document.querySelector('.axis').innerHTML = s.hist.map((_, i) => `<span>${i * 10}</span>`).join('');
+
+  const sc = Object.entries(s.scenarios).sort((a, b) => b[1] - a[1]);
+  const sm = Math.max(...sc.map((x) => x[1]), 1);
+  $('scen').innerHTML = sc.map(([k, v]) => `<div class="hbar"><div class="lbl"><span>${esc(k)}</span><b>${v}</b></div><div class="track"><i style="width:${(v / sm) * 100}%;background:var(--bad)"></i></div></div>`).join('') || '<p class="muted">Пока нет</p>';
+
+  const rs = Object.entries(s.reasons).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const rm = Math.max(...rs.map((x) => x[1]), 1);
+  $('reasons').innerHTML = rs.map(([k, v]) => `<div class="hbar"><div class="lbl"><span>${REASON_NAMES[k] || k}</span><b>${v}</b></div><div class="track"><i style="width:${(v / rm) * 100}%"></i></div></div>`).join('') || '<p class="muted">Пока нет</p>';
+
+  $('mules').innerHTML = mules.map((a) => `<div class="acc"><div><b>${esc(a.name)}</b> <span class="muted">${a.bank} · ${a.phone}</span>
+    <div class="muted" style="font-size:12px">счёт ${a.ageDays} дн. · ${a.senders} отправителей за 24ч · ${fmt(a.sum)}</div></div>
+    <div>${a.blacklisted ? '<span class="chip HOLD">В БАЗЕ</span>' : a.senders >= 5 ? '<span class="chip HOLD">ДРОП</span>' : '<span class="chip CHALLENGE">НАБЛЮДЕНИЕ</span>'}</div></div>`).join('') || '<p class="muted">Нет</p>';
+}
+
+function setSim(on) {
+  $('liveDot').classList.toggle('on', on);
+  $('simBtn').lastChild.textContent = on ? 'Остановить поток' : 'Запустить поток операций';
+  $('simBtn').dataset.on = on ? '1' : '';
+}
+
+$('simBtn').onclick = async () => { const r = await api('/api/sim', { on: !$('simBtn').dataset.on }); setSim(r.running); };
+document.querySelectorAll('[data-a]').forEach((b) => (b.onclick = () => api('/api/sim/attack', { type: b.dataset.a })));
+
+(async () => {
+  (await api('/api/transactions?limit=150')).reverse().forEach((t) => upsert(t));
+  refresh();
+  const es = new EventSource('/api/stream');
+  es.addEventListener('tx', (e) => upsert(JSON.parse(e.data), true));
+  es.addEventListener('update', (e) => upsert(JSON.parse(e.data)));
+  setInterval(refresh, 1500);
+})();
+</script>
+</body>
+</html>

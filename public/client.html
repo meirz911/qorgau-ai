@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Qorgau · Клиент</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .wrap { display: grid; grid-template-columns: 400px 1fr; gap: 24px; max-width: 1200px; margin: 0 auto; padding: 24px; }
+  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } }
+  .phone { width: 380px; max-width: 100%; height: 780px; margin: 0 auto; border-radius: 44px; border: 10px solid #000; background: #f4f6fb;
+    color: #111827; overflow: hidden; position: relative; box-shadow: 0 30px 80px rgba(0,0,0,.5); display: flex; flex-direction: column; }
+  .phone .status { height: 34px; display: flex; justify-content: space-between; padding: 8px 22px; font-size: 12px; font-weight: 600; }
+  .phone .appbar { padding: 6px 20px 16px; background: linear-gradient(160deg, #1e3a8a, #312e81); color: #fff; margin: 0 10px; border-radius: 22px; }
+  .phone .appbar small { opacity: .75; }
+  .phone .balance { font-size: 28px; font-weight: 800; margin-top: 4px; }
+  .screen { flex: 1; padding: 18px 20px; overflow-y: auto; display: none; }
+  .screen.on { display: block; }
+  .phone label { color: #6b7280; }
+  .phone input, .phone select, .phone textarea { background: #fff; color: #111; border-color: #e5e7eb; }
+  .phone .big { width: 100%; padding: 15px; font-size: 16px; border-radius: 14px; margin-top: 16px; }
+  .phone .primary { background: #1e40af; color: #fff; border: 0; }
+  .phone .ghost { background: transparent; color: #374151; border: 1px solid #d1d5db; }
+  .phone .danger { background: #dc2626; color: #fff; border: 0; }
+  .center { text-align: center; }
+  .icon { width: 74px; height: 74px; border-radius: 50%; margin: 20px auto 12px; display: grid; place-items: center; font-size: 36px; }
+  .why { background: #fff; border-radius: 14px; padding: 12px 14px; margin-top: 12px; border: 1px solid #fde68a; }
+  .why li { margin: 6px 0; line-height: 1.4; font-size: 13px; }
+  .kz { background: #fef3c7; color: #92400e; border-radius: 12px; padding: 10px 12px; font-size: 13px; margin-top: 10px; font-weight: 600; }
+  .q { background: #fff; border-radius: 12px; padding: 10px 12px; margin-top: 8px; border: 1px solid #e5e7eb; font-size: 13px; }
+  .q .opts { display: flex; gap: 6px; margin-top: 8px; }
+  .q .opts button { flex: 1; padding: 7px; background: #f3f4f6; color: #111; border: 1px solid #e5e7eb; }
+  .q .opts button.sel { background: #1e40af; color: #fff; border-color: #1e40af; }
+  .spinner { width: 54px; height: 54px; border: 5px solid #e5e7eb; border-top-color: #1e40af; border-radius: 50%; margin: 120px auto 16px; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .side { display: flex; flex-direction: column; gap: 16px; }
+  .presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+  .presets button { text-align: left; padding: 10px 12px; font-weight: 500; }
+  .presets button b { display: block; font-size: 13px; }
+  .presets button small { color: var(--muted); }
+  .ctx { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
+  @media (max-width: 600px) { .ctx { grid-template-columns: 1fr; } }
+  .score { font-size: 54px; font-weight: 900; line-height: 1; }
+  .reason { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px dashed var(--line); font-size: 13px; }
+  .reason b { color: var(--warn); white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><div class="logo">Q</div>Qorgau AI <small>демо мобильного банка</small></div>
+  <div class="nav"><a href="/">О проекте</a><a class="active" href="client.html">Клиент</a><a href="dashboard.html">Антифрод-центр</a></div>
+</div>
+
+<div class="wrap">
+  <div class="phone">
+    <div class="status"><span id="clock">12:00</span><span>5G ▮▮▮ 87%</span></div>
+    <div class="appbar"><small id="uName">—</small><div class="balance">1 248 500 ₸</div><small>Карта •• 4471</small></div>
+
+    <div class="screen on" id="s-form">
+      <h3 style="font-size:18px">Перевод</h3>
+      <label>Получатель</label>
+      <select id="recipient"></select>
+      <input id="recPhone" placeholder="+7 7__ ___ __ __" style="display:none;margin-top:8px">
+      <label>Сумма, ₸</label>
+      <input id="amount" type="number" min="100" step="100" value="15000">
+      <label>Комментарий</label>
+      <input id="comment" placeholder="Необязательно">
+      <button class="big primary" id="send">Перевести</button>
+      <p class="center" style="color:#6b7280;font-size:12px;margin-top:14px">🛡 Защищено Qorgau AI</p>
+    </div>
+
+    <div class="screen" id="s-wait"><div class="spinner"></div><p class="center" style="color:#6b7280">Qorgau проверяет перевод…</p></div>
+
+    <div class="screen center" id="s-ok">
+      <div class="icon" style="background:#d1fae5">✓</div>
+      <h3>Перевод выполнен</h3>
+      <p id="okText" style="color:#6b7280"></p>
+      <button class="big ghost" onclick="show('s-form')">Новый перевод</button>
+    </div>
+
+    <div class="screen" id="s-warn">
+      <div class="icon" style="background:#fef3c7">⚠️</div>
+      <h3 class="center" style="font-size:19px">Подождите. Похоже на мошенничество</h3>
+      <div class="why"><b style="font-size:13px">Почему мы остановили перевод:</b><ul id="whyList" style="padding-left:18px;margin:6px 0 0"></ul></div>
+      <div class="kz">Абай болыңыз! Банк қызметкерлері ешқашан ақшаны «қауіпсіз шотқа» аударуды сұрамайды.</div>
+      <div id="questions"></div>
+      <button class="big danger" id="cancelBtn">Отменить перевод</button>
+      <button class="big ghost" id="proceedBtn" disabled>Продолжить (15)</button>
+    </div>
+
+    <div class="screen center" id="s-hold">
+      <div class="icon" style="background:#fee2e2">🛑</div>
+      <h3>Перевод приостановлен</h3>
+      <p style="color:#4b5563;line-height:1.5">Мы заметили признаки мошенничества. Деньги остаются на вашем счёте.<br><br>
+        Специалист банка позвонит вам <b>с официального номера</b>. Если вам сейчас звонят «из банка» — <b>положите трубку</b>.</p>
+      <div class="why" style="text-align:left"><b style="font-size:13px">Причины:</b><ul id="holdList" style="padding-left:18px;margin:6px 0 0"></ul></div>
+      <button class="big ghost" onclick="show('s-form')">Понятно</button>
+    </div>
+
+    <div class="screen center" id="s-cancel">
+      <div class="icon" style="background:#dbeafe">🛡</div>
+      <h3>Перевод отменён</h3>
+      <p style="color:#6b7280">Ваши деньги в безопасности. Если вам угрожали или торопили — сообщите в банк, мы заблокируем счёт мошенника для всех клиентов.</p>
+      <button class="big ghost" onclick="show('s-form')">На главную</button>
+    </div>
+  </div>
+
+  <div class="side">
+    <div class="card">
+      <h3>1 · Сценарии для демо</h3>
+      <div class="presets" id="presets"></div>
+    </div>
+    <div class="card">
+      <h3>2 · Контекст сессии (собирает SDK приложения)</h3>
+      <div class="row" style="gap:12px;flex-wrap:wrap">
+        <div class="grow" style="min-width:160px"><label>Клиент</label><select id="user"></select></div>
+        <div style="width:110px"><label>Час</label><input id="hour" type="number" min="0" max="23"></div>
+        <div style="width:150px"><label>Город (гео)</label><select id="city"><option>Тараз</option><option>Алматы</option><option>Астана</option><option>Шымкент</option><option>Караганда</option><option>Ташкент</option></select></div>
+      </div>
+      <div class="ctx" style="margin-top:8px">
+        <div class="toggle"><span>📞 Идёт телефонный звонок</span><label class="switch"><input type="checkbox" id="onCall"><i></i></label></div>
+        <div class="toggle"><span>❓ Номер не в контактах</span><label class="switch"><input type="checkbox" id="callerUnknown"><i></i></label></div>
+        <div class="toggle"><span>🖥 Открыт AnyDesk / RustDesk</span><label class="switch"><input type="checkbox" id="remoteAccess"><i></i></label></div>
+        <div class="toggle"><span>📱 Новое устройство</span><label class="switch"><input type="checkbox" id="newDevice"><i></i></label></div>
+        <div class="toggle"><span>🔑 Пароль сменён &lt; 24 ч</span><label class="switch"><input type="checkbox" id="passwordChanged"><i></i></label></div>
+      </div>
+    </div>
+    <div class="card" id="bankView">
+      <h3>3 · Что видит банк</h3>
+      <p class="muted">Отправьте перевод — здесь появится риск-скор и объяснение решения.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => Math.round(n).toLocaleString('ru-RU') + ' ₸';
+let user, demo, lastTx, cdTimer;
+const answers = {};
+
+const HUMAN = {
+  ON_CALL: 'Вы разговариваете по телефону. Мошенники звонят под видом банка или полиции и диктуют, куда переводить деньги.',
+  CALLER: 'Звонок идёт с незнакомого номера или через мессенджер.',
+  REMOTE: 'На телефоне открыто приложение удалённого доступа. Банк никогда не просит его устанавливать.',
+  BLACKLIST: 'На этого получателя уже жаловались другие клиенты.',
+  MULE: 'Этот счёт за сутки получил деньги от многих незнакомых людей.',
+  FANIN: 'Этот счёт недавно получал деньги от разных людей.',
+  YOUNG_ACC: 'Счёт получателя открыт всего несколько дней назад.',
+  AMOUNT_X: 'Сумма намного больше ваших обычных переводов.',
+  AMOUNT: 'Сумма больше ваших обычных переводов.',
+  NEW_DEVICE: 'Перевод выполняется с нового устройства.',
+  PWD_RESET: 'Недавно был изменён пароль или номер телефона.',
+  GEO: 'Вход из необычного для вас места.',
+  ODD_HOUR: 'Необычное для вас время операции.',
+  VELOCITY: 'Много переводов за короткое время.',
+  NEW_RECIP: 'Вы ещё ни разу не переводили этому человеку.',
+  SOCIAL_ENG: 'Так обычно выглядит обман по телефону: звонок, новый получатель и крупная сумма.',
+  ML: 'Операция не похожа на ваше обычное поведение.',
+};
+const human = (r) => r.code === 'TEXT'
+  ? (r.label.includes('безопасн') ? '«Безопасных счетов» не существует — это главный признак обмана.' : r.label.replace('Комментарий: ', 'В комментарии: '))
+  : HUMAN[r.code] || r.label;
+
+const PRESETS = [
+  { t: 'Обычный перевод', d: 'Знакомый получатель, обычная сумма', go: () => ({ rec: user.known[0].id, k: 1, comment: 'на продукты' }) },
+  { t: '📞 «Служба безопасности банка»', d: 'Звонок + «безопасный счёт»', go: () => ({ rec: demo.mule[0].id, k: 9, comment: 'перевод на безопасный счет', onCall: 1, callerUnknown: 1 }) },
+  { t: '🖥 Удалённый доступ', d: 'AnyDesk + звонок', go: () => ({ rec: demo.mule[1].id, k: 12, onCall: 1, callerUnknown: 1, remoteAccess: 1 }) },
+  { t: '🛒 Предоплата на OLX', d: 'Получатель из базы жалоб', go: () => ({ rec: demo.blacklisted[0].id, k: 2.5, comment: 'предоплата за iPhone, OLX' }) },
+  { t: '🔓 Захват аккаунта', d: 'Новое устройство, 03:00, другой город', go: () => ({ rec: demo.mule[2].id, k: 7, newDevice: 1, passwordChanged: 1, hour: 3, city: 'Ташкент' }) },
+  { t: '📈 «Инвестиции» в крипту', d: 'Обещание дохода', go: () => ({ rec: demo.mule[0].id, k: 5, comment: 'инвестиции USDT доход 30%' }) },
+  { t: 'Новый получатель (честно)', d: 'Небольшая сумма по номеру', go: () => ({ phone: '+7 701 555 12 34', k: 0.6, comment: 'за репетитора' }) },
+];
+
+async function api(path, body) {
+  const r = await fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error);
+  return j;
+}
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('on', s.id === id));
+  if (id === 's-form') resetCtx(false);
+}
+
+async function loadUser(id) {
+  user = await api('/api/user?id=' + id);
+  $('uName').textContent = user.name + ' · ' + user.city;
+  $('city').value = user.city;
+  $('hour').value = 14;
+  const sel = $('recipient');
+  sel.innerHTML = '';
+  const g1 = document.createElement('optgroup'); g1.label = 'Ваши контакты';
+  user.known.forEach((a) => g1.append(new Option(`${a.name} · ${a.bank}`, a.id)));
+  const g2 = document.createElement('optgroup'); g2.label = 'По номеру телефона';
+  [...demo.mule, ...demo.blacklisted].forEach((a) => g2.append(new Option(`${a.name} · ${a.phone}`, a.id)));
+  g2.append(new Option('Ввести другой номер…', '__phone'));
+  sel.append(g1, g2);
+  $('amount').value = Math.round(user.avgAmount / 100) * 100;
+}
+
+function resetCtx(all = true) {
+  if (!all) return;
+  ['onCall', 'callerUnknown', 'remoteAccess', 'newDevice', 'passwordChanged'].forEach((k) => ($(k).checked = false));
+}
+
+function applyPreset(p) {
+  show('s-form');
+  resetCtx();
+  const c = p.go();
+  if (c.phone) { $('recipient').value = '__phone'; $('recPhone').style.display = ''; $('recPhone').value = c.phone; }
+  else { $('recipient').value = c.rec; $('recPhone').style.display = 'none'; }
+  $('amount').value = Math.round((user.avgAmount * c.k) / 1000) * 1000 || 1000;
+  $('comment').value = c.comment || '';
+  $('hour').value = c.hour ?? 14;
+  $('city').value = c.city || user.city;
+  ['onCall', 'callerUnknown', 'remoteAccess', 'newDevice', 'passwordChanged'].forEach((k) => ($(k).checked = !!c[k]));
+}
+
+async function send() {
+  const recVal = $('recipient').value;
+  const body = {
+    userId: user.id,
+    amount: Number($('amount').value),
+    comment: $('comment').value,
+    hour: Number($('hour').value),
+    city: $('city').value,
+    deviceId: $('newDevice').checked ? 'DEV-NEW-' + Math.floor(Math.random() * 1e4) : user.mainDevice,
+    context: {
+      onCall: $('onCall').checked, callerUnknown: $('callerUnknown').checked,
+      remoteAccess: $('remoteAccess').checked, passwordChanged: $('passwordChanged').checked,
+    },
+  };
+  if (recVal === '__phone') body.recipientPhone = $('recPhone').value; else body.recipientId = recVal;
+  show('s-wait');
+  const [tx] = await Promise.all([api('/api/transfer/check', body), new Promise((r) => setTimeout(r, 700))]);
+  lastTx = tx;
+  renderBank(tx);
+  if (tx.decision === 'ALLOW') { $('okText').textContent = `${fmt(tx.amount)} → ${tx.recipient.name}`; show('s-ok'); }
+  else if (tx.decision === 'HOLD') { fillList('holdList', tx); show('s-hold'); }
+  else openWarn(tx);
+}
+
+function fillList(id, tx) {
+  $(id).innerHTML = tx.reasons.filter((r) => r.code !== 'ML' || tx.reasons.length === 1).slice(0, 4).map((r) => `<li>${human(r)}</li>`).join('');
+}
+
+const QUESTIONS = [
+  ['onCall', 'Вам сейчас кто-то звонит и просит перевести деньги?'],
+  ['askedByStranger', 'Вас просил об этом «сотрудник банка», полиции или КНБ?'],
+  ['knowsRecipient', 'Вы лично знаете получателя?'],
+];
+
+function openWarn(tx) {
+  fillList('whyList', tx);
+  Object.keys(answers).forEach((k) => delete answers[k]);
+  $('questions').innerHTML = QUESTIONS.map(([k, q]) => `<div class="q">${q}<div class="opts">
+    <button data-k="${k}" data-v="1">Да</button><button data-k="${k}" data-v="0">Нет</button></div></div>`).join('');
+  $('questions').querySelectorAll('button').forEach((b) => (b.onclick = () => {
+    answers[b.dataset.k] = b.dataset.v === '1';
+    b.parentElement.querySelectorAll('button').forEach((x) => x.classList.toggle('sel', x === b));
+    updateProceed();
+  }));
+  let left = 15;
+  clearInterval(cdTimer);
+  const pb = $('proceedBtn');
+  pb.disabled = true; pb.textContent = `Продолжить (${left})`;
+  cdTimer = setInterval(() => {
+    left--;
+    if (left <= 0) { clearInterval(cdTimer); pb.dataset.cd = 'done'; updateProceed(); }
+    else pb.textContent = `Продолжить (${left})`;
+  }, 1000);
+  pb.dataset.cd = '';
+  show('s-warn');
+}
+
+function updateProceed() {
+  const pb = $('proceedBtn');
+  if (pb.dataset.cd !== 'done') return;
+  const all = QUESTIONS.every(([k]) => k in answers);
+  pb.disabled = !all;
+  pb.textContent = all ? 'Я уверен(а), продолжить' : 'Ответьте на вопросы';
+}
+
+async function confirm(action) {
+  clearInterval(cdTimer);
+  const tx = await api('/api/transfer/confirm', { txId: lastTx.id, action, answers });
+  renderBank(tx);
+  if (tx.status === 'CANCELLED') show('s-cancel');
+  else if (tx.status === 'HELD') { fillList('holdList', tx); show('s-hold'); }
+  else { $('okText').textContent = `${fmt(tx.amount)} → ${tx.recipient.name}`; show('s-ok'); }
+}
+
+function renderBank(tx) {
+  const color = tx.score >= 70 ? 'var(--bad)' : tx.score >= 35 ? 'var(--warn)' : 'var(--ok)';
+  $('bankView').innerHTML = `<h3>3 · Что видит банк · ${tx.id}</h3>
+    <div class="row" style="gap:20px;align-items:flex-end">
+      <div><div class="score" style="color:${color}">${tx.score}</div><span class="muted">риск-скор / 100</span></div>
+      <div class="grow">
+        <div><span class="chip ${tx.decision}">${tx.decision}</span> <span class="chip ${tx.status}">${tx.status}</span></div>
+        <div style="margin-top:8px;font-weight:700">${tx.scenario}</div>
+        <div class="muted" style="font-size:12px">${fmt(tx.amount)} → ${tx.recipient.name} (${tx.recipient.bank}, счёт ${tx.recipient.ageDays} дн.) ·
+          ML-аномалия ${tx.ml} · решение за ${tx.latencyMs} мс</div>
+      </div>
+    </div>
+    <div style="margin-top:14px">${tx.reasons.map((r) => `<div class="reason"><span>${r.label}</span><b>+${r.points}</b></div>`).join('') || '<p class="muted">Факторов риска нет</p>'}</div>`;
+}
+
+(async () => {
+  setInterval(() => ($('clock').textContent = new Date().toTimeString().slice(0, 5)), 1000);
+  demo = await api('/api/demo-recipients');
+  const users = await api('/api/users');
+  users.forEach((u) => $('user').append(new Option(`${u.name} (${u.city})`, u.id)));
+  $('user').onchange = (e) => loadUser(e.target.value);
+  await loadUser(users[0].id);
+  PRESETS.forEach((p) => {
+    const b = document.createElement('button');
+    b.innerHTML = `<b>${p.t}</b><small>${p.d}</small>`;
+    b.onclick = () => applyPreset(p);
+    $('presets').append(b);
+  });
+  $('recipient').onchange = (e) => ($('recPhone').style.display = e.target.value === '__phone' ? '' : 'none');
+  $('send').onclick = () => send().catch((e) => { alert(e.message); show('s-form'); });
+  $('cancelBtn').onclick = () => confirm('cancel');
+  $('proceedBtn').onclick = () => confirm('proceed');
+})();
+</script>
+</body>
+</html>
