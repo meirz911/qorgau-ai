@@ -39,7 +39,7 @@ class Simulator {
   }
 
   attack(type) {
-    const tx = ATTACKS[type](this.engine);
+    const tx = (ATTACKS[type] || STEALTH[type])(this.engine);
     if (Array.isArray(tx)) tx.forEach((t, i) => setTimeout(() => this._submit({ ...t, truth: 'fraud', attack: type }), i * 250));
     else this._submit({ ...tx, truth: 'fraud', attack: type });
   }
@@ -104,4 +104,61 @@ const ATTACKS = {
   },
 };
 
-module.exports = { Simulator, ATTACKS };
+// Замаскированные атаки: мошенник старается выглядеть как обычный перевод.
+// Нет сигналов звонка (например, iOS без SDK), старый «выдержанный» счёт, умеренная сумма, обычный комментарий.
+const STEALTH = {
+  stealthSocial(e) {
+    const u = pick(e.world.users);
+    return { userId: u.id, recipientId: pick(e.world.agedMules).id, amount: big(u, 2, 5),
+      comment: pick(['', 'долг', 'за товар', 'перевод']) };
+  },
+  paraphrasedScam(e) {
+    // Формулировки, которых нет в списке фраз — ловит только NLP-модель
+    const u = pick(e.world.users);
+    return { userId: u.id, recipientId: pick(e.world.mules.concat(e.world.agedMules)).id, amount: big(u, 2, 4),
+      comment: pick(['на защищённый счёт по просьбе специалиста', 'для разблокировки карты по указанию оператора',
+        'возврат страховки, сказали срочно', 'чтобы отменить кредит который на меня оформили', 'комиссия за получение выигрыша']) };
+  },
+  simSwap(e) {
+    // Перевыпуск SIM-карты: новое устройство и смена пароля, но днём и в своём городе
+    const u = pick(e.world.users);
+    return { userId: u.id, recipientId: pick(e.world.agedMules).id, amount: big(u, 3, 6),
+      deviceId: `DEV-S${randInt(100, 999)}`, context: { passwordChanged: true } };
+  },
+  slowMule(e) {
+    // Небольшие суммы на старый дроп-счёт
+    const u = pick(e.world.users);
+    return { userId: u.id, recipientId: pick(e.world.agedMules).id, amount: big(u, 0.8, 1.8) };
+  },
+};
+
+// Предобучение логистической регрессии на «архиве кейсов»: отдельный синтетический мир,
+// чтобы модель не видела счета и клиентов, на которых её потом проверяют.
+function pretrainSupervised(target, { normal = 2500, perAttack = 60 } = {}) {
+  const { RiskEngine } = require('./risk');
+  const tmp = new RiskEngine();
+  const gens = { ...ATTACKS, ...STEALTH };
+  const jobs = [];
+  const sim = new Simulator(tmp);
+  for (let i = 0; i < normal; i++) jobs.push(() => sim.normal());
+  for (const g of Object.values(gens)) {
+    for (let i = 0; i < perAttack; i++) {
+      jobs.push(() => {
+        const tx = g(tmp);
+        (Array.isArray(tx) ? tx : [tx]).forEach((t) => sim._submit({ ...t, truth: 'fraud' }));
+      });
+    }
+  }
+  jobs.sort(() => rng() - 0.5);
+  const X = [], Y = [];
+  sim._submit = (input) => {
+    const tx = tmp.evaluate({ ...input, source: 'sim' });
+    X.push(tmp.xById.get(tx.id));
+    Y.push(input.truth === 'fraud' ? 1 : 0);
+  };
+  jobs.forEach((j) => j());
+  target.sup.fit(X, Y, { rng });
+  return { samples: X.length, frauds: Y.filter(Boolean).length };
+}
+
+module.exports = { Simulator, ATTACKS, STEALTH, pretrainSupervised };

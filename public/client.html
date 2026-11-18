@@ -128,6 +128,18 @@
       <h3>3 · Что видит банк</h3>
       <p class="muted">Отправьте перевод — здесь появится риск-скор и объяснение решения.</p>
     </div>
+    <div class="card">
+      <h3>4 · 🤖 AI-проверка сообщения или звонка</h3>
+      <p class="muted" style="margin-top:-4px">Клиент вставляет SMS, сообщение из WhatsApp/Telegram или расшифровку звонка — AI объясняет, обман ли это.</p>
+      <div class="row" style="flex-wrap:wrap;gap:6px;margin:8px 0">
+        <button class="ex" data-t="Здравствуйте, это служба безопасности банка. С вашей карты пытаются списать деньги. Чтобы сохранить средства, переведите их на защищённый резервный счёт, номер продиктует наш специалист.">📞 «Служба безопасности»</button>
+        <button class="ex" data-t="Мам привет, это мой новый номер, старый телефон разбил. Можешь срочно скинуть 40 тысяч, завтра верну, очень надо">💬 «Мама, новый номер»</button>
+        <button class="ex" data-t="Сәлем! Ертең кешкі асқа келесің бе? Мен сағат 7-де боламын">✅ Обычное сообщение (KZ)</button>
+      </div>
+      <textarea id="msgText" rows="3" placeholder="Вставьте текст сообщения или звонка…"></textarea>
+      <button class="btn-primary" id="msgBtn" style="margin-top:8px;width:100%">Проверить</button>
+      <div id="msgResult" style="margin-top:12px"></div>
+    </div>
   </div>
 </div>
 
@@ -155,6 +167,8 @@ const HUMAN = {
   NEW_RECIP: 'Вы ещё ни разу не переводили этому человеку.',
   SOCIAL_ENG: 'Так обычно выглядит обман по телефону: звонок, новый получатель и крупная сумма.',
   ML: 'Операция не похожа на ваше обычное поведение.',
+  SUPERVISED: 'Похожие операции в прошлом оказывались мошенническими.',
+  TEXT_ML: 'Комментарий похож на тексты, которые диктуют мошенники.',
 };
 const human = (r) => r.code === 'TEXT'
   ? (r.label.includes('безопасн') ? '«Безопасных счетов» не существует — это главный признак обмана.' : r.label.replace('Комментарий: ', 'В комментарии: '))
@@ -290,6 +304,31 @@ async function confirm(action) {
   else { $('okText').textContent = `${fmt(tx.amount)} → ${tx.recipient.name}`; show('s-ok'); }
 }
 
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+
+async function checkMessage() {
+  const text = $('msgText').value.trim();
+  if (!text) return;
+  $('msgBtn').disabled = true;
+  $('msgResult').innerHTML = '<p class="muted">AI анализирует…</p>';
+  try {
+    const r = await api('/api/analyze-message', { text });
+    const map = { scam: ['HOLD', 'МОШЕННИЧЕСТВО'], suspicious: ['CHALLENGE', 'ПОДОЗРИТЕЛЬНО'], safe: ['ALLOW', 'БЕЗОПАСНО'] };
+    const [cls, word] = map[r.verdict] || map.suspicious;
+    $('msgResult').innerHTML = `
+      <div class="row" style="gap:12px"><span class="chip ${cls}">${word} · риск ${r.risk}</span><b>${esc(r.scheme)}</b></div>
+      <p style="margin:10px 0 4px">${esc(r.explanation_ru)}</p>
+      <p class="muted" style="margin:0 0 8px">🇰🇿 ${esc(r.explanation_kz)}</p>
+      ${r.red_flags?.length ? `<div class="muted" style="font-size:12px">Признаки: ${r.red_flags.map(esc).join(' · ')}</div>` : ''}
+      <p style="margin:8px 0 0"><b>Что делать:</b> ${esc(r.advice_ru)}</p>
+      <p class="muted" style="font-size:11px;margin-top:8px">Анализ: ${r.source === 'claude' ? 'Claude · ' + esc(r.model) : esc(r.model)}${r.note ? ' · ' + esc(r.note) : ''}</p>`;
+  } catch (e) {
+    $('msgResult').innerHTML = `<p class="muted">Ошибка: ${esc(e.message)}</p>`;
+  } finally {
+    $('msgBtn').disabled = false;
+  }
+}
+
 function renderBank(tx) {
   const color = tx.score >= 70 ? 'var(--bad)' : tx.score >= 35 ? 'var(--warn)' : 'var(--ok)';
   $('bankView').innerHTML = `<h3>3 · Что видит банк · ${tx.id}</h3>
@@ -320,6 +359,8 @@ function renderBank(tx) {
   });
   $('recipient').onchange = (e) => ($('recPhone').style.display = e.target.value === '__phone' ? '' : 'none');
   $('send').onclick = () => send().catch((e) => { alert(e.message); show('s-form'); });
+  document.querySelectorAll('.ex').forEach((b) => (b.onclick = () => { $('msgText').value = b.dataset.t; checkMessage(); }));
+  $('msgBtn').onclick = checkMessage;
   $('cancelBtn').onclick = () => confirm('cancel');
   $('proceedBtn').onclick = () => confirm('proceed');
 })();

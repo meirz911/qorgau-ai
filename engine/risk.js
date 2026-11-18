@@ -5,6 +5,8 @@ const { EventEmitter } = require('events');
 const { performance } = require('perf_hooks');
 const { IsolationForest } = require('./isoforest');
 const { analyzeText } = require('./text');
+const { nb } = require('./nlp');
+const { LogisticModel, featurize } = require('./supervised');
 const { buildWorld, normalHistory, hourDeviation, rng, randInt, phone, fullName } = require('./data');
 
 const DAY = 24 * 3600e3;
@@ -39,6 +41,8 @@ class RiskEngine extends EventEmitter {
     this.inbound = new Map(); // accountId -> [{userId, ts, amount}]
     this.seq = 1;
     this.clock = Date.now(); // виртуальное время: симулятор «проматывает» минуты
+    this.sup = new LogisticModel(); // обучаемая модель: предобучение + решения аналитиков
+    this.xById = new Map(); // вектор признаков операции — для дообучения при разметке
 
     const t0 = performance.now();
     const X = normalHistory(this.world).map(toVector);
@@ -139,6 +143,11 @@ class RiskEngine extends EventEmitter {
     // --- Текст
     const text = analyzeText(input.comment);
     for (const h of text.hits) add('TEXT', `Комментарий: ${h.cat}`, h.points, 'text');
+    // NLP-модель ловит формулировки, которых нет в списке фраз
+    const nlp = input.comment ? nb.predict(input.comment) : { prob: 0, words: [] };
+    if (!text.hits.length && nlp.prob >= 0.85) {
+      add('TEXT_ML', `Комментарий похож на мошеннический (NLP ${Math.round(nlp.prob * 100)}%${nlp.words.length ? ': «' + nlp.words.join('», «') + '»' : ''})`, 14, 'text');
+    }
 
     // --- Комбо-паттерн социальной инженерии
     if (ctx.onCall && f.isNewRecipient && (f.ratio > 3 || text.points > 0)) {
@@ -149,6 +158,15 @@ class RiskEngine extends EventEmitter {
     const ml = this.forest.score(toVector(f));
     const mlPts = Math.max(0, Math.min(1, (ml - this.mlThreshold) / 0.12)) * 30;
     if (mlPts >= 3) add('ML', `ML: поведенческая аномалия (Isolation Forest, score ${ml.toFixed(2)})`, mlPts, 'ml');
+
+    // --- Обучаемая модель (логистическая регрессия на размеченных кейсах и решениях аналитиков)
+    const x = featurize(f, reasons, ml, nlp.prob);
+    const fraudProb = this.sup.trainedOn ? this.sup.predict(x) : null;
+    if (fraudProb !== null && fraudProb >= 0.6) {
+      const why = this.sup.topFactors(x).join(', ');
+      add('SUPERVISED', `Модель, обученная на кейсах банка: вероятность мошенничества ${Math.round(fraudProb * 100)}%${why ? ' (' + why + ')' : ''}`,
+        (fraudProb - 0.5) * 50, 'ml');
+    }
 
     const raw = reasons.reduce((s, r) => s + r.points, 0);
     const score = Math.round(100 * (1 - Math.exp(-raw / 45)));
@@ -162,6 +180,8 @@ class RiskEngine extends EventEmitter {
       recipient: { id: rec.id, name: rec.name, phone: rec.phone, bank: rec.bank, ageDays: rec.ageDays },
       amount, comment: input.comment || '', hour, deviceId, city, context: ctx,
       features: f, ml: +ml.toFixed(3),
+      fraudProb: fraudProb === null ? null : +fraudProb.toFixed(3),
+      textProb: +nlp.prob.toFixed(3),
       score, decision, reasons,
       scenario: classify(reasons),
       status: decision === 'ALLOW' ? 'COMPLETED' : decision === 'HOLD' ? 'HELD' : 'PENDING',
@@ -179,7 +199,12 @@ class RiskEngine extends EventEmitter {
 
     this.txs.push(tx);
     this.byId.set(tx.id, tx);
-    if (this.txs.length > 3000) this.byId.delete(this.txs.shift().id);
+    this.xById.set(tx.id, x);
+    if (this.txs.length > 3000) {
+      const old = this.txs.shift();
+      this.byId.delete(old.id);
+      this.xById.delete(old.id);
+    }
     this.emit('tx', tx);
     return tx;
   }
@@ -209,7 +234,11 @@ class RiskEngine extends EventEmitter {
   review(txId, label) {
     const tx = this.byId.get(txId);
     if (!tx) throw new Error('unknown tx');
+    const firstLabel = !tx.label;
     tx.label = label;
+    // Самообучение: решение аналитика сразу дообучает модель
+    const x = this.xById.get(txId);
+    if (x && firstLabel && (label === 'fraud' || label === 'legit')) this.sup.learn(x, label === 'fraud' ? 1 : 0);
     const acc = this.world.accounts.get(tx.recipient.id);
     if (label === 'fraud') {
       tx.status = tx.status === 'COMPLETED' ? 'COMPLETED' : 'BLOCKED';
@@ -243,6 +272,8 @@ class RiskEngine extends EventEmitter {
     s.recall = s.truth.fraud ? s.truth.fraudCaught / s.truth.fraud : null;
     s.fpr = s.truth.legit ? s.truth.legitFlagged / s.truth.legit : null;
     s.ml = this.mlInfo;
+    s.sup = this.sup.info();
+    s.ai = this.aiInfo || null;
     return s;
   }
 

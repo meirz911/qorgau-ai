@@ -3,10 +3,12 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { RiskEngine } = require('./engine/risk');
-const { Simulator, ATTACKS } = require('./engine/simulator');
+const { Simulator, ATTACKS, STEALTH, pretrainSupervised } = require('./engine/simulator');
+const { analyzeMessage, aiInfo } = require('./engine/ai');
 
 const PORT = process.env.PORT || 3000;
 const engine = new RiskEngine();
+const pre = pretrainSupervised(engine);
 const sim = new Simulator(engine);
 const streams = new Set();
 
@@ -48,11 +50,12 @@ const routes = {
   'POST /api/transfer/confirm': (q, b) => engine.confirm(b.txId, b),
   'POST /api/review': (q, b) => engine.review(b.txId, b.label),
   'GET /api/transactions': (q) => engine.txs.slice(-Number(q.get('limit') || 60)).reverse(),
-  'GET /api/stats': () => ({ ...engine.stats(), simRunning: sim.running }),
+  'GET /api/stats': () => ({ ...engine.stats(), ai: aiInfo(), simRunning: sim.running }),
+  'POST /api/analyze-message': (q, b) => analyzeMessage(b.text),
   'GET /api/accounts/suspicious': () => engine.suspiciousAccounts(),
   'POST /api/sim': (q, b) => { b.on ? sim.start() : sim.stop(); return { running: sim.running }; },
   'POST /api/sim/attack': (q, b) => {
-    if (!ATTACKS[b.type]) throw new Error('unknown attack');
+    if (!ATTACKS[b.type] && !STEALTH[b.type]) throw new Error('unknown attack');
     sim.attack(b.type);
     return { ok: true };
   },
@@ -73,7 +76,7 @@ const server = http.createServer(async (req, res) => {
   if (handler) {
     try {
       const body = req.method === 'POST' ? await readBody(req) : {};
-      return json(res, 200, handler(url.searchParams, body));
+      return json(res, 200, await handler(url.searchParams, body));
     } catch (e) {
       return json(res, 400, { error: e.message });
     }
@@ -93,5 +96,8 @@ server.listen(PORT, () => {
   console.log(`\n  Qorgau AI запущен:  http://localhost:${PORT}`);
   console.log(`  Клиент:            http://localhost:${PORT}/client.html`);
   console.log(`  Антифрод-центр:    http://localhost:${PORT}/dashboard.html`);
-  console.log(`  ML: Isolation Forest, ${engine.mlInfo.samples} обучающих операций, ${engine.mlInfo.trainMs} мс\n`);
+  console.log(`  ML: Isolation Forest, ${engine.mlInfo.samples} обучающих операций, ${engine.mlInfo.trainMs} мс`);
+  console.log(`  Обучаемая модель: предобучена на ${pre.samples} кейсах, дообучается на решениях аналитика`);
+  const ai = aiInfo();
+  console.log(`  AI-проверка сообщений: ${ai.sdk ? `Claude (${ai.model}), при отсутствии ключа — локальная модель` : 'локальная модель (SDK не установлен)'}\n`);
 });

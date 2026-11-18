@@ -57,6 +57,8 @@
     <button data-a="marketplace">🛒 OLX-предоплата</button>
     <button data-a="investment">📈 Инвест-схема</button>
     <button data-a="muleBurst">🕸 Сеть дропов</button>
+    <button data-a="stealthSocial">🥷 Замаскированная</button>
+    <button data-a="paraphrasedScam">✍️ Новая формулировка</button>
   </div>
 
   <div class="kpis">
@@ -66,6 +68,7 @@
     <div class="card kpi"><h3>Сохранено денег</h3><div class="v" style="color:var(--accent)" id="kSaved">0 ₸</div><div class="s">отменено + задержано</div></div>
     <div class="card kpi"><h3>Recall / FPR</h3><div class="v" id="kRecall">—</div><div class="s" id="kFpr">по ground truth симулятора</div></div>
     <div class="card kpi"><h3>Скорость</h3><div class="v" id="kLat">—</div><div class="s" id="kMl">—</div></div>
+    <div class="card kpi"><h3>Самообучение</h3><div class="v" id="kSup">0</div><div class="s" id="kSupS">решений аналитика в модели</div></div>
   </div>
 
   <div class="main">
@@ -103,7 +106,8 @@ const REASON_NAMES = { AMOUNT_X: 'Крупная сумма', AMOUNT: 'Сумм�
   VELOCITY: 'Частота операций', NEW_DEVICE: 'Новое устройство', GEO: 'Гео-несоответствие', PWD_RESET: 'Смена пароля',
   REMOTE: 'Удалённый доступ', ON_CALL: 'Звонок во время перевода', CALLER: 'Неизвестный звонящий', BLACKLIST: 'База жалоб',
   YOUNG_ACC: 'Свежий счёт', MULE: 'Признак дропа', FANIN: 'Много отправителей', TEXT: 'Текст комментария',
-  SOCIAL_ENG: 'Соц. инженерия', ML: 'ML-аномалия', ANSWERS: 'Ответы клиента' };
+  SOCIAL_ENG: 'Соц. инженерия', ML: 'ML-аномалия', ANSWERS: 'Ответы клиента',
+  SUPERVISED: 'Обучаемая модель', TEXT_ML: 'NLP-модель текста' };
 
 async function api(path, body) {
   const r = await fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
@@ -166,6 +170,8 @@ function renderDetail(t) {
       <div><span>Контекст:</span> ${ctx}</div>
       <div><span>Комментарий:</span> ${esc(t.comment || '—')}</div>
       <div><span>ML (iForest):</span> ${t.ml} · ${t.latencyMs} мс</div>
+      <div><span>Обучаемая модель:</span> ${t.fraudProb == null ? '—' : Math.round(t.fraudProb * 100) + '% мошенничество'}</div>
+      <div><span>NLP текста:</span> ${t.comment ? Math.round(t.textProb * 100) + '% скам' : '—'}</div>
     </div>
     <h3 style="margin-top:6px">Почему такое решение</h3>
     ${t.reasons.map((r) => `<div class="reason"><div>${esc(r.label)}<div class="grp">${GROUP[r.group] || r.group}</div></div>
@@ -175,7 +181,7 @@ function renderDetail(t) {
       <button class="btn-danger grow" onclick="review('${t.id}','fraud')">Мошенничество → в базу</button>
       <button class="btn-ok grow" onclick="review('${t.id}','legit')">Легитимно</button>
     </div>
-    <p class="muted" style="font-size:12px;margin-top:8px">«Мошенничество» добавляет получателя в базу жалоб — следующие переводы на этот счёт у всех клиентов будут задержаны.</p>`;
+    <p class="muted" style="font-size:12px;margin-top:8px">Решение аналитика сразу дообучает модель. «Мошенничество» добавляет получателя в базу жалоб — следующие переводы на этот счёт у всех клиентов будут задержаны.</p>`;
 }
 
 async function review(id, label) {
@@ -194,6 +200,8 @@ async function refresh() {
   $('kRecall').textContent = s.recall == null ? '—' : `${Math.round(s.recall * 100)}% / ${(s.fpr * 100).toFixed(1)}%`;
   $('kLat').textContent = s.avgLatency + ' мс';
   $('kMl').textContent = `iForest: ${s.ml.trees} деревьев, ${s.ml.samples} операций`;
+  $('kSup').textContent = s.sup.feedback;
+  $('kSupS').textContent = `решений аналитика · предобучение: ${s.sup.trainedOn} кейсов`;
   setSim(s.simRunning);
 
   const hm = Math.max(...s.hist, 1);

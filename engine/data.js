@@ -73,7 +73,10 @@ function buildWorld() {
       passwordChangedAt: 0,
     });
   }
-  return { accounts, users, mules, blacklisted, legit };
+  // «Выдержанные» дропы: старые купленные счета — их не видно по возрасту, только по поведению
+  const agedMules = [];
+  for (let i = 0; i < 6; i++) agedMules.push(addAccount({ ageDays: randInt(120, 900), mule: true }));
+  return { accounts, users, mules, blacklisted, legit, agedMules };
 }
 
 // Нормальная история — обучающая выборка для Isolation Forest

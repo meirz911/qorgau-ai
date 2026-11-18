@@ -3,6 +3,12 @@
   "version": "1.0.0",
   "description": "Qorgau AI — real-time anti-fraud for bank transfers (ITU Hackathon 2026, FinTech case)",
   "main": "server.js",
-  "scripts": { "start": "node server.js", "eval": "node scripts/evaluate.js" },
-  "license": "MIT"
+  "scripts": {
+    "start": "node server.js",
+    "eval": "node scripts/evaluate.js"
+  },
+  "license": "MIT",
+  "optionalDependencies": {
+    "@anthropic-ai/sdk": "^1.10.0"
+  }
 }
